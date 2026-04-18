@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { createRoom, joinRoom, getRoomState, subscribeRoom } from './game'
+import { createRoom, joinRoom, getRoomState, subscribeRoom, endGame } from './game'
 import Home from './components/Home.jsx'
 import Lobby from './components/Lobby.jsx'
 import Photo from './components/Photo.jsx'
@@ -70,13 +70,34 @@ export default function App() {
   )
 
   const shared = { room, players, captions, votes, me, leave }
-  switch (room.state) {
-    case 'lobby':   return <Lobby {...shared} />
-    case 'photo':   return <Photo {...shared} />
-    case 'caption': return <Caption {...shared} />
-    case 'vote':    return <Vote {...shared} />
-    case 'reveal':  return <Reveal {...shared} />
-    case 'done':    return <Done {...shared} />
-    default:        return <div className="container">Unknown state: {room.state}</div>
+  const isHost = players[0]?.id === me.id
+  const inGame = ['photo', 'caption', 'vote', 'reveal'].includes(room.state)
+
+  const handleEndGame = () => {
+    if (confirm('End the game now? Current scores will be shown.')) {
+      endGame(room.id)
+    }
   }
+
+  let screen
+  switch (room.state) {
+    case 'lobby':   screen = <Lobby {...shared} />; break
+    case 'photo':   screen = <Photo {...shared} />; break
+    case 'caption': screen = <Caption {...shared} />; break
+    case 'vote':    screen = <Vote {...shared} />; break
+    case 'reveal':  screen = <Reveal {...shared} />; break
+    case 'done':    screen = <Done {...shared} />; break
+    default:        screen = <div className="container">Unknown state: {room.state}</div>
+  }
+
+  return (
+    <>
+      {screen}
+      {isHost && inGame && (
+        <div className="container host-bar">
+          <button className="ghost" onClick={handleEndGame}>End game</button>
+        </div>
+      )}
+    </>
+  )
 }

@@ -158,6 +158,11 @@ button.ghost {
 .caption.disabled { opacity: 0.6; cursor: not-allowed; }
 .caption.reveal { cursor: default; display: flex; flex-direction: column; gap: 6px; }
 
+.host-bar {
+  padding-top: 0;
+  padding-bottom: 24px;
+}
+
 blockquote {
   margin: 0;
   padding: 12px 14px;

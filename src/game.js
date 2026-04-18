@@ -176,6 +176,13 @@ async function tallyAndReveal(roomId, round) {
   }
 }
 
+export async function endGame(roomId) {
+  await supabase
+    .from('rooms')
+    .update({ state: 'done', round_ends_at: null })
+    .eq('id', roomId)
+}
+
 export async function nextRound(roomId, room, players) {
   if (room.round >= room.total_rounds) {
     await supabase.from('rooms').update({ state: 'done' }).eq('id', roomId)
