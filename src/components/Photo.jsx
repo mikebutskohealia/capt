@@ -23,7 +23,7 @@ export default function Photo({ room, players, me }) {
           <p>You're up. Post a photo for the others to caption.</p>
           <label className="file-btn">
             {busy ? 'Uploading…' : 'Choose photo'}
-            <input type="file" accept="image/*" capture="environment" onChange={handleFile} disabled={busy} />
+            <input type="file" accept="image/*" onChange={handleFile} disabled={busy} />
           </label>
           {err && <p className="error">{err}</p>}
         </>
