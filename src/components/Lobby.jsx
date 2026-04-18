@@ -1,12 +1,15 @@
-import { startGame, PLAYERS_REQUIRED } from '../game'
+import { startGame, MIN_PLAYERS, MAX_PLAYERS } from '../game'
 
 export default function Lobby({ room, players, me, leave }) {
   const isHost = players[0]?.id === me.id
-  const ready = players.length === PLAYERS_REQUIRED
+  const ready = players.length >= MIN_PLAYERS
   return (
     <div className="container">
       <h2>Room <code>{room.id}</code></h2>
-      <p className="muted">Share this code with friends. {players.length}/{PLAYERS_REQUIRED} joined.</p>
+      <p className="muted">
+        Share this code with friends. {players.length}/{MAX_PLAYERS} joined
+        {!ready && ` · need at least ${MIN_PLAYERS}`}.
+      </p>
       <ul className="players">
         {players.map(p => (
           <li key={p.id}>
@@ -17,7 +20,7 @@ export default function Lobby({ room, players, me, leave }) {
       </ul>
       {isHost ? (
         <button disabled={!ready} onClick={() => startGame(room.id, players)}>
-          {ready ? 'Start game' : `Waiting for ${PLAYERS_REQUIRED - players.length} more…`}
+          {ready ? `Start game (${players.length} player${players.length === 1 ? '' : 's'})` : `Waiting for ${MIN_PLAYERS - players.length} more…`}
         </button>
       ) : (
         <p className="muted">Waiting for host to start…</p>

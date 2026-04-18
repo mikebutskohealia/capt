@@ -1,7 +1,9 @@
 import { supabase } from './supabase'
 
-export const PLAYERS_REQUIRED = 4
+export const MIN_PLAYERS = 2
+export const MAX_PLAYERS = 8
 export const CAPTION_SECONDS = 60
+export const VOTE_SECONDS = 30
 const ROOM_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
 function randomRoomCode(len = 4) {
@@ -36,7 +38,7 @@ export async function joinRoom(roomId, name) {
     .eq('room_id', roomId)
     .order('seat', { ascending: true })
   if (fetchErr) throw fetchErr
-  if (existing.length >= PLAYERS_REQUIRED) throw new Error('Room is full')
+  if (existing.length >= MAX_PLAYERS) throw new Error('Room is full')
 
   const seat = existing.length
   const { data, error } = await supabase
@@ -73,7 +75,13 @@ export async function startGame(roomId, players) {
   const photographer = players[0]
   const { error } = await supabase
     .from('rooms')
-    .update({ state: 'photo', round: 1, photographer_id: photographer.id, photo_url: null })
+    .update({
+      state: 'photo',
+      round: 1,
+      total_rounds: players.length,
+      photographer_id: photographer.id,
+      photo_url: null,
+    })
     .eq('id', roomId)
   if (error) throw error
 }
@@ -106,12 +114,20 @@ export async function submitCaption(roomId, round, playerId, text) {
   if (error) throw error
 }
 
-export async function advanceToVoteIfReady(roomId, round, captions, players, photographerId) {
-  const expected = players.filter(p => p.id !== photographerId).length
+export async function advanceToVoteIfReady(roomId, round, captions, players) {
   const have = captions.filter(c => c.round === round).length
-  if (have >= expected) {
-    await supabase.from('rooms').update({ state: 'vote', round_ends_at: null }).eq('id', roomId)
+  if (have >= players.length) {
+    await advanceToVote(roomId)
   }
+}
+
+export async function advanceToVote(roomId) {
+  const endsAt = new Date(Date.now() + VOTE_SECONDS * 1000).toISOString()
+  await supabase
+    .from('rooms')
+    .update({ state: 'vote', round_ends_at: endsAt })
+    .eq('id', roomId)
+    .eq('state', 'caption')
 }
 
 export async function castVote(roomId, round, voterId, captionId) {
@@ -127,8 +143,20 @@ export async function castVote(roomId, round, voterId, captionId) {
 export async function advanceToRevealIfReady(roomId, round, votes, players) {
   const have = votes.filter(v => v.round === round).length
   if (have >= players.length) {
-    await tallyAndReveal(roomId, round)
+    await advanceToReveal(roomId, round)
   }
+}
+
+export async function advanceToReveal(roomId, round) {
+  const { data, error } = await supabase
+    .from('rooms')
+    .update({ state: 'reveal', round_ends_at: null })
+    .eq('id', roomId)
+    .eq('state', 'vote')
+    .select()
+  if (error) throw error
+  if (!data || data.length === 0) return // another client already advanced
+  await tallyAndReveal(roomId, round)
 }
 
 async function tallyAndReveal(roomId, round) {
@@ -146,7 +174,6 @@ async function tallyAndReveal(roomId, round) {
   for (const [id, score] of pointsByPlayer) {
     await supabase.from('players').update({ score }).eq('id', id)
   }
-  await supabase.from('rooms').update({ state: 'reveal' }).eq('id', roomId)
 }
 
 export async function nextRound(roomId, room, players) {

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
-import { submitCaption, advanceToVoteIfReady } from '../game'
+import { submitCaption, advanceToVoteIfReady, advanceToVote } from '../game'
 
 export default function Caption({ room, players, captions, me }) {
-  const isPhotographer = me.id === room.photographer_id
   const myCaption = captions.find(c => c.round === room.round && c.player_id === me.id)
   const [text, setText] = useState(myCaption?.text || '')
   const [busy, setBusy] = useState(false)
@@ -14,14 +13,14 @@ export default function Caption({ room, players, captions, me }) {
   }, [room.round_ends_at])
 
   useEffect(() => {
-    advanceToVoteIfReady(room.id, room.round, captions, players, room.photographer_id)
-  }, [captions, players, room.id, room.round, room.photographer_id])
+    advanceToVoteIfReady(room.id, room.round, captions, players)
+  }, [captions, players, room.id, room.round])
 
   useEffect(() => {
-    if (remaining === 0 && !isPhotographer && !myCaption) {
-      submitCaption(room.id, room.round, me.id, '(no caption)').catch(() => {})
+    if (remaining === 0) {
+      advanceToVote(room.id).catch(() => {})
     }
-  }, [remaining, isPhotographer, myCaption, room.id, room.round, me.id])
+  }, [remaining, room.id])
 
   const submit = async () => {
     if (!text.trim()) return
@@ -31,17 +30,16 @@ export default function Caption({ room, players, captions, me }) {
   }
 
   const submittedCount = captions.filter(c => c.round === room.round).length
-  const needed = players.length - 1
+  const photographer = players.find(p => p.id === room.photographer_id)
 
   return (
     <div className="container">
       <div className="timer">{remaining}s</div>
       <img className="photo" src={room.photo_url} alt="" />
-      {isPhotographer ? (
-        <p className="muted">You posted this. Waiting for captions… ({submittedCount}/{needed})</p>
-      ) : myCaption ? (
+      <p className="muted">Photo by {photographer?.name}{me.id === room.photographer_id ? ' (you)' : ''}</p>
+      {myCaption ? (
         <>
-          <p className="muted">Caption submitted. Waiting for others… ({submittedCount}/{needed})</p>
+          <p className="muted">Caption submitted. Waiting for others… ({submittedCount}/{players.length})</p>
           <blockquote>{myCaption.text}</blockquote>
         </>
       ) : (

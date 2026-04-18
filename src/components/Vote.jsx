@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from 'react'
-import { castVote, advanceToRevealIfReady } from '../game'
+import { useEffect, useMemo, useState } from 'react'
+import { castVote, advanceToRevealIfReady, advanceToReveal } from '../game'
 
 export default function Vote({ room, players, captions, votes, me }) {
   const roundCaptions = useMemo(
@@ -21,9 +21,21 @@ export default function Vote({ room, players, captions, votes, me }) {
 
   const myVote = votes.find(v => v.round === room.round && v.voter_id === me.id)
 
+  const [remaining, setRemaining] = useState(() => secsLeft(room.round_ends_at))
+  useEffect(() => {
+    const id = setInterval(() => setRemaining(secsLeft(room.round_ends_at)), 250)
+    return () => clearInterval(id)
+  }, [room.round_ends_at])
+
   useEffect(() => {
     advanceToRevealIfReady(room.id, room.round, votes, players)
   }, [votes, players, room.id, room.round])
+
+  useEffect(() => {
+    if (remaining === 0 && room.round_ends_at) {
+      advanceToReveal(room.id, room.round).catch(() => {})
+    }
+  }, [remaining, room.id, room.round, room.round_ends_at])
 
   const vote = async (captionId) => {
     if (myVote) return
@@ -33,6 +45,7 @@ export default function Vote({ room, players, captions, votes, me }) {
   const voted = votes.filter(v => v.round === room.round).length
   return (
     <div className="container">
+      <div className="timer">{remaining}s</div>
       <img className="photo" src={room.photo_url} alt="" />
       <h3>Pick your favorite caption</h3>
       <p className="muted">{voted}/{players.length} voted</p>
@@ -56,6 +69,12 @@ export default function Vote({ room, players, captions, votes, me }) {
       </ul>
     </div>
   )
+}
+
+function secsLeft(iso) {
+  if (!iso) return 0
+  const ms = new Date(iso).getTime() - Date.now()
+  return Math.max(0, Math.ceil(ms / 1000))
 }
 
 function hashStr(s) {
